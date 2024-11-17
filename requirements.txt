@@ -1,0 +1,6 @@
+streamlit==1.18.1
+pandas==2.0.3
+boto3==1.26.6
+openpyxl==3.1.2
+python-docx==0.8.11
+fitz==1.18.19  #
