@@ -17,7 +17,7 @@ st.sidebar.title("Upload the document to user folder to process")
 comprehend_medical = boto3.client(service_name='comprehendmedical', region_name='us-east-1')
 textract = boto3.client('textract', region_name='us-east-1') 
 bedrock = boto3.client('bedrock-runtime', region_name='us-east-1')  
-model_id = "anthropic.claude-v2"  # Example, replace with the correct model ID
+model_id = "amazon.titan-text-premier-v1:0"  # Example, replace with the correct model ID
 s3_bucket_name = 'aps-aws-input'
 s3 = boto3.resource('s3')
 
@@ -184,7 +184,7 @@ def generate_non_medical_prompt(text, document_type):
 with st.sidebar:
    
     # Sidebar for folder creation or selection
-    folder_name = st.sidebar.text_input("Enter folder name")
+    folder_name = st.sidebar.text_input("Enter folder name/Claim number")
 
     # Get existing folders from S3
     existing_folders = get_existing_folders(s3_bucket_name)
@@ -332,31 +332,30 @@ if selected_folder:
         
             st.header(f"Decision making")
             # Format the request payload using the model's native structure.
-            native_request = {
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 512,
+            request = {
+                "inputText": full_prompt,  # Use the 'prompt' key as required
+                "textGenerationConfig": {
+                "maxTokenCount": 512,
                 "temperature": 0.5,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content":full_prompt,
-                    }
-                ],
+              },  # Optional, adjust as needed
             }
 
-            # Convert the native request to JSON.
-            request = json.dumps(native_request)
            
             try:
                 # Invoke the model with the request
-                response = bedrock.invoke_model(modelId="anthropic.claude-v2", body=request)
-
+                response = bedrock.invoke_model(modelId=model_id, body=json.dumps(request))
                 # Decode the response body
                 model_response = json.loads(response["body"].read())
 
                 # Extract and print the response text
-                response_text = model_response["content"][0]["text"]
-                st.write(response_text)
+                response_text = model_response.get("results", "")
+                
+                for result in response_text:
+                    output_text = result.get("outputText", "")
+                    if output_text:
+                        st.write(output_text)
+                    else:
+                        st.write("No outputText found in the result.")
 
             except (ClientError, Exception) as e:
                 st.write(f"ERROR: Can't invoke '{model_id}'. Reason: {e}")
